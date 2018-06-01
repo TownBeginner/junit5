@@ -11,9 +11,6 @@
 package org.junit.jupiter.engine.discovery;
 
 import static org.apiguardian.api.API.Status.INTERNAL;
-import static org.junit.platform.commons.util.ReflectionUtils.findAllClassesInClasspathRoot;
-import static org.junit.platform.commons.util.ReflectionUtils.findAllClassesInModule;
-import static org.junit.platform.commons.util.ReflectionUtils.findAllClassesInPackage;
 import static org.junit.platform.engine.support.filter.ClasspathScanningSupport.buildClassFilter;
 
 import java.util.LinkedHashSet;
@@ -53,27 +50,14 @@ public class DiscoverySelectorResolver {
 	}
 
 	private void resolve(EngineDiscoveryRequest request, TestDescriptor engineDescriptor, ClassFilter classFilter) {
-		JavaElementsResolver javaElementsResolver = createJavaElementsResolver(engineDescriptor);
+		JavaElementsResolver javaElementsResolver = createJavaElementsResolver(engineDescriptor, classFilter);
 
-		request.getSelectorsByType(ClasspathRootSelector.class).forEach(selector -> {
-			findAllClassesInClasspathRoot(selector.getClasspathRoot(), classFilter).forEach(
-				javaElementsResolver::resolveClass);
-		});
-		request.getSelectorsByType(ModuleSelector.class).forEach(selector -> {
-			findAllClassesInModule(selector.getModuleName(), classFilter).forEach(javaElementsResolver::resolveClass);
-		});
-		request.getSelectorsByType(PackageSelector.class).forEach(selector -> {
-			findAllClassesInPackage(selector.getPackageName(), classFilter).forEach(javaElementsResolver::resolveClass);
-		});
-		request.getSelectorsByType(ClassSelector.class).forEach(selector -> {
-			javaElementsResolver.resolveClass(selector.getJavaClass());
-		});
-		request.getSelectorsByType(MethodSelector.class).forEach(selector -> {
-			javaElementsResolver.resolveMethod(selector.getJavaClass(), selector.getJavaMethod());
-		});
-		request.getSelectorsByType(UniqueIdSelector.class).forEach(selector -> {
-			javaElementsResolver.resolveUniqueId(selector.getUniqueId());
-		});
+		request.getSelectorsByType(ClasspathRootSelector.class).forEach(javaElementsResolver::resolveClasspathRoot);
+		request.getSelectorsByType(ModuleSelector.class).forEach(javaElementsResolver::resolveModule);
+		request.getSelectorsByType(PackageSelector.class).forEach(javaElementsResolver::resolvePackage);
+		request.getSelectorsByType(ClassSelector.class).forEach(javaElementsResolver::resolveClass);
+		request.getSelectorsByType(MethodSelector.class).forEach(javaElementsResolver::resolveMethod);
+		request.getSelectorsByType(UniqueIdSelector.class).forEach(javaElementsResolver::resolveUniqueId);
 	}
 
 	private void filter(TestDescriptor engineDescriptor, ClassFilter classFilter) {
@@ -84,14 +68,14 @@ public class DiscoverySelectorResolver {
 		rootDescriptor.accept(TestDescriptor::prune);
 	}
 
-	private JavaElementsResolver createJavaElementsResolver(TestDescriptor engineDescriptor) {
+	private JavaElementsResolver createJavaElementsResolver(TestDescriptor engineDescriptor, ClassFilter classFilter) {
 		Set<ElementResolver> resolvers = new LinkedHashSet<>();
 		resolvers.add(new TestContainerResolver());
 		resolvers.add(new NestedTestsResolver());
 		resolvers.add(new TestMethodResolver());
 		resolvers.add(new TestFactoryMethodResolver());
 		resolvers.add(new TestTemplateMethodResolver());
-		return new JavaElementsResolver(engineDescriptor, resolvers);
+		return new JavaElementsResolver(engineDescriptor, classFilter, resolvers);
 	}
 
 }
